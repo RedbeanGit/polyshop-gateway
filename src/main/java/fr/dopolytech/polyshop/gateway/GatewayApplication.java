@@ -3,12 +3,14 @@ package fr.dopolytech.polyshop.gateway;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 
 @SpringBootApplication
 @EnableConfigurationProperties(UriConfiguration.class)
+@EnableDiscoveryClient
 public class GatewayApplication {
 
 	public static void main(String[] args) {
@@ -29,7 +31,7 @@ public class GatewayApplication {
 						.uri(cartUri + "/cart"))
 				.route(p -> p
 						.path("/orders/**")
-						.uri(orderUri))
+						.uri(orderUri + "/orders"))
 				.build();
 	}
 

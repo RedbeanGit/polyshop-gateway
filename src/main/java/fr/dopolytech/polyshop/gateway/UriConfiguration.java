@@ -4,10 +4,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties
 public class UriConfiguration {
-    private String catalogUri = "http://localhost:8081";
-    private String cartUri = "http://localhost:8082";
-    private String orderUri = "http://localhost:8083";
-    private String inventoryUri = "http://localhost:8084";
+    private String catalogUri = "lb://catalog-service";
+    private String cartUri = "lb://cart-service";
+    private String orderUri = "lb://order-service";
+    private String inventoryUri = "lb://inventory-service";
 
     public String getCatalogUri() {
         return catalogUri;
