@@ -1,0 +1,75 @@
+version: '3'
+
+services:
+  postgres:
+    image: postgres:15.2
+    environment:
+      - POSTGRES_PASSWORD=order
+      - POSTGRES_USER=order
+      - POSTGRES_DB=order
+  
+  mongo_catalog:
+    image: mongo:6.0.5
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=catalog
+      - MONGO_INITDB_ROOT_PASSWORD=catalog
+      - MONGO_INITDB_DATABASE=admin
+  
+  redis:
+    image: redis:7.0.9
+  
+  mongo_inventory:
+    image: mongo:6.0.5
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=inventory
+      - MONGO_INITDB_ROOT_PASSWORD=inventory
+      - MONGO_INITDB_DATABASE=admin
+
+  catalog:
+    image: redbeandock/polyshop-catalog:latest
+    environment:
+      - MONGODB_HOST=mongo_catalog
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=admin
+      - MONGODB_USERNAME=catalog
+      - MONGODB_PASSWORD=catalog
+    depends_on:
+      - mongo_catalog
+    ports:
+      - 8081:8080
+  
+  cart:
+    image: redbeandock/polyshop-cart:latest
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    ports:
+      - 8082:8080
+
+  order:
+    image: redbeandock/polyshop-order:latest
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=order
+      - POSTGRES_USER=order
+      - POSTGRES_PASSWORD=order
+    depends_on:
+      - postgres
+    ports:
+      - 8083:8080
+
+  inventory:
+    image: redbeandock/polyshop-inventory:latest
+    environment:
+      - MONGODB_HOST=mongo_inventory
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=admin
+      - MONGODB_USERNAME=inventory
+      - MONGODB_PASSWORD=inventory
+    depends_on:
+      - mongo_inventory
+    ports:
+      - 8084:8080
