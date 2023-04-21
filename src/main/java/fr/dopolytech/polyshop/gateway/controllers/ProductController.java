@@ -3,101 +3,112 @@ package fr.dopolytech.polyshop.gateway.controllers;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.server.ResponseStatusException;
 
-import fr.dopolytech.polyshop.gateway.UriConfiguration;
+import fr.dopolytech.polyshop.gateway.configurations.UriConfiguration;
 import fr.dopolytech.polyshop.gateway.models.CatalogProduct;
 import fr.dopolytech.polyshop.gateway.models.InventoryProduct;
 import fr.dopolytech.polyshop.gateway.models.Product;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/products")
 public class ProductController {
     private final UriConfiguration uriConfiguration;
+    private final WebClient.Builder webClientBuilder;
 
-    public ProductController(UriConfiguration uriConfiguration) {
+    public ProductController(UriConfiguration uriConfiguration, WebClient.Builder webClientBuilder) {
         this.uriConfiguration = uriConfiguration;
+        this.webClientBuilder = webClientBuilder;
     }
 
     @GetMapping
-    public List<Product> findAll() {
+    public Flux<Product> findAll() {
         String catalogUrl = uriConfiguration.getCatalogUri();
         String inventoryUrl = uriConfiguration.getInventoryUri();
 
-        RestTemplate restTemplate = new RestTemplate();
-        List<Product> products = new ArrayList<Product>();
+        WebClient webClient = webClientBuilder.build();
 
-        ResponseEntity<InventoryProduct[]> inventoryProductsResponse = restTemplate.getForEntity(
-                inventoryUrl + "/products",
-                InventoryProduct[].class);
+        return webClient.get().uri(inventoryUrl + "/products").retrieve()
+                .toEntityList(InventoryProduct.class)
+                .flatMap(response -> {
+                    List<Mono<Product>> monoProducts = new ArrayList<Mono<Product>>();
+                    if (response.getStatusCode().is2xxSuccessful()) {
+                        List<InventoryProduct> inventoryProducts = response.getBody();
 
-        if (inventoryProductsResponse.getBody() == null) {
-            return products;
-        }
+                        if (inventoryProducts == null) {
+                            return Mono.just(new ArrayList<Product>());
+                        }
 
-        List<InventoryProduct> inventoryProducts = List.of(inventoryProductsResponse.getBody());
-
-        List<CatalogProduct> currentCatalogProducts;
-        CatalogProduct currentCatalogProduct;
-
-        for (InventoryProduct inventoryProduct : inventoryProducts) {
-            ResponseEntity<CatalogProduct[]> catalogProductsResponse = restTemplate.getForEntity(
-                    catalogUrl + "/products?inventory=" + inventoryProduct.getId(),
-                    CatalogProduct[].class);
-            if (catalogProductsResponse.getBody() != null) {
-                currentCatalogProducts = List.of(catalogProductsResponse.getBody());
-            } else {
-                currentCatalogProducts = new ArrayList<CatalogProduct>();
-                currentCatalogProducts.add(new CatalogProduct(inventoryProduct.getId(), "Unknown",
-                        "Unknown"));
-            }
-            currentCatalogProduct = currentCatalogProducts.get(0);
-            products.add(new Product(
-                    currentCatalogProduct.getInventoryId(),
-                    currentCatalogProduct.getName(),
-                    currentCatalogProduct.getDescription(),
-                    inventoryProduct.getPrice(),
-                    inventoryProduct.getQuantity()));
-        }
-
-        return products;
+                        for (InventoryProduct inventoryProduct : inventoryProducts) {
+                            monoProducts.add(webClient.get()
+                                    .uri(catalogUrl + "/products/" + inventoryProduct.productId).retrieve()
+                                    .toEntity(CatalogProduct.class).map(catalogProductResponse -> {
+                                        if (catalogProductResponse.getStatusCode().is2xxSuccessful()) {
+                                            return catalogProductResponse.getBody();
+                                        } else {
+                                            return new CatalogProduct(inventoryProduct.productId, null, null, 0.0);
+                                        }
+                                    })
+                                    .map(catalogProduct -> new Product(
+                                            catalogProduct.productId,
+                                            catalogProduct.name,
+                                            catalogProduct.description,
+                                            catalogProduct.price,
+                                            inventoryProduct.quantity)));
+                        }
+                    }
+                    return Flux.merge(monoProducts).collectList();
+                }).flatMapMany(Flux::fromIterable);
     }
 
     @GetMapping("/{id}")
-    public Product findOne(String id) {
+    public Mono<Product> findOne(String id) {
         String catalogUrl = uriConfiguration.getCatalogUri();
         String inventoryUrl = uriConfiguration.getInventoryUri();
 
-        RestTemplate restTemplate = new RestTemplate();
-        List<CatalogProduct> catalogProducts;
-        CatalogProduct catalogProduct;
-        InventoryProduct inventoryProduct;
+        WebClient webClient = webClientBuilder.build();
 
-        ResponseEntity<InventoryProduct> inventoryProductResponse = restTemplate.getForEntity(
-                inventoryUrl + "/products/" + id,
-                InventoryProduct.class);
-        ResponseEntity<CatalogProduct[]> catalogProductsResponse = restTemplate.getForEntity(
-                catalogUrl + "/products?inventory=" + id,
-                CatalogProduct[].class);
+        return webClient.get()
+                .uri(inventoryUrl + "/products/" + id)
+                .retrieve()
+                .toEntity(InventoryProduct.class)
+                .flatMap(inventoryResponse -> {
+                    InventoryProduct inventoryProduct = inventoryResponse.getBody();
 
-        catalogProducts = List.of(catalogProductsResponse.getBody());
-        catalogProduct = catalogProducts.get(0);
-        inventoryProduct = inventoryProductResponse.getBody();
+                    if (inventoryProduct == null) {
+                        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found");
+                    }
 
-        if (inventoryProduct == null) {
-            return null;
-        }
+                    return webClient.get()
+                            .uri(catalogUrl + "/products/" + id)
+                            .retrieve()
+                            .toEntity(CatalogProduct.class)
+                            .map(catalogResponse -> {
+                                CatalogProduct catalogProduct;
+                                if (catalogResponse.getStatusCode().is2xxSuccessful()) {
+                                    catalogProduct = catalogResponse.getBody();
+                                } else {
+                                    catalogProduct = new CatalogProduct(id, null, null, 0.0);
+                                }
 
-        if (catalogProduct == null) {
-            return new Product(id, "Unknown", "Unknown", inventoryProduct.getPrice(),
-                    inventoryProduct.getQuantity());
-        }
+                                if (catalogProduct == null) {
+                                    return new Product(id, null, null, 0.0, 0);
+                                }
 
-        return new Product(catalogProduct.getInventoryId(), catalogProduct.getName(), catalogProduct.getDescription(),
-                inventoryProduct.getPrice(), inventoryProduct.getQuantity());
+                                return new Product(
+                                        inventoryProduct.productId,
+                                        catalogProduct.name,
+                                        catalogProduct.description,
+                                        catalogProduct.price,
+                                        inventoryProduct.quantity);
+                            });
+                });
     }
 }

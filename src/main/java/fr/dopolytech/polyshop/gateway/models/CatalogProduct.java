@@ -2,25 +2,16 @@ package fr.dopolytech.polyshop.gateway.models;
 
 public class CatalogProduct {
     public String id;
+    public String productId;
     public String name;
     public String description;
-    public String inventoryId;
+    public Double price;
 
-    public CatalogProduct(String inventoryId, String name, String description) {
-        this.inventoryId = inventoryId;
+    public CatalogProduct(String productId, String name, String description, Double price) {
+        this.productId = productId;
         this.name = name;
         this.description = description;
+        this.price = price;
     }
 
-    public String getInventoryId() {
-        return inventoryId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
 }

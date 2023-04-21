@@ -4,9 +4,13 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import fr.dopolytech.polyshop.gateway.configurations.UriConfiguration;
 
 @SpringBootApplication
 @EnableConfigurationProperties(UriConfiguration.class)
@@ -33,6 +37,12 @@ public class GatewayApplication {
 						.path("/orders/**")
 						.uri(orderUri + "/orders"))
 				.build();
+	}
+
+	@LoadBalanced
+	@Bean
+	public WebClient.Builder loadBalancedWebClientBuilder() {
+		return WebClient.builder();
 	}
 
 }

@@ -1,4 +1,4 @@
-package fr.dopolytech.polyshop.gateway;
+package fr.dopolytech.polyshop.gateway.configurations;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
