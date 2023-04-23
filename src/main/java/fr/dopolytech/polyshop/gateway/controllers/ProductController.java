@@ -36,36 +36,28 @@ public class ProductController {
         WebClient webClient = webClientBuilder.build();
 
         return webClient.get().uri(inventoryUrl + "/products").retrieve()
-                .toEntityList(InventoryProduct.class)
-                .flatMap(response -> {
+                .bodyToMono(InventoryProduct[].class)
+                .flatMap(inventoryProducts -> {
                     List<Mono<Product>> monoProducts = new ArrayList<Mono<Product>>();
-                    if (response.getStatusCode().is2xxSuccessful()) {
-                        List<InventoryProduct> inventoryProducts = response.getBody();
+                    if (inventoryProducts == null) {
+                        return Mono.just(new ArrayList<Product>());
+                    }
 
-                        if (inventoryProducts == null) {
-                            return Mono.just(new ArrayList<Product>());
-                        }
-
-                        for (InventoryProduct inventoryProduct : inventoryProducts) {
-                            monoProducts.add(webClient.get()
-                                    .uri(catalogUrl + "/products/" + inventoryProduct.productId).retrieve()
-                                    .toEntity(CatalogProduct.class).map(catalogProductResponse -> {
-                                        if (catalogProductResponse.getStatusCode().is2xxSuccessful()) {
-                                            return catalogProductResponse.getBody();
-                                        } else {
-                                            return new CatalogProduct(inventoryProduct.productId, null, null, 0.0);
-                                        }
-                                    })
-                                    .map(catalogProduct -> new Product(
-                                            catalogProduct.productId,
-                                            catalogProduct.name,
-                                            catalogProduct.description,
-                                            catalogProduct.price,
-                                            inventoryProduct.quantity)));
-                        }
+                    for (InventoryProduct inventoryProduct : inventoryProducts) {
+                        monoProducts.add(webClient.get()
+                                .uri(catalogUrl + "/products/" + inventoryProduct.productId).retrieve()
+                                .bodyToMono(CatalogProduct.class)
+                                .defaultIfEmpty(new CatalogProduct(inventoryProduct.productId, null, null, null))
+                                .map(catalogProduct -> new Product(
+                                        catalogProduct.productId,
+                                        catalogProduct.name,
+                                        catalogProduct.description,
+                                        catalogProduct.price,
+                                        inventoryProduct.quantity)));
                     }
                     return Flux.merge(monoProducts).collectList();
                 }).flatMapMany(Flux::fromIterable);
+
     }
 
     @GetMapping("/{id}")
