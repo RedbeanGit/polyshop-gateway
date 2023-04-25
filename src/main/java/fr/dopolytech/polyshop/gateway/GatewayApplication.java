@@ -8,6 +8,7 @@ import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import fr.dopolytech.polyshop.gateway.configurations.UriConfiguration;
@@ -27,12 +28,31 @@ public class GatewayApplication {
 		String orderUri = uriConfiguration.getOrderUri();
 
 		return builder.routes()
+				// Products
 				.route(p -> p
 						.path("/products/**")
 						.uri("forward:/products"))
+				// Cart
+				.route(p -> p
+						.path("/cart")
+						.and().method(HttpMethod.GET)
+						.uri("forward:/cart"))
+				.route(p -> p
+						.path("/cart/add")
+						.and().method(HttpMethod.POST)
+						.uri("forward:/cart"))
+				.route(p -> p
+						.path("/cart/remove")
+						.and().method(HttpMethod.POST)
+						.uri("forward:/cart"))
 				.route(p -> p
 						.path("/cart/**")
 						.uri(cartUri + "/cart"))
+				// Orders
+				.route(p -> p
+						.path("/orders/{id}/products")
+						.and().method(HttpMethod.GET)
+						.uri("forward:/orders"))
 				.route(p -> p
 						.path("/orders/**")
 						.uri(orderUri + "/orders"))
