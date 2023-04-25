@@ -34,10 +34,6 @@ public class GatewayApplication {
 						.uri("forward:/products"))
 				// Cart
 				.route(p -> p
-						.path("/cart")
-						.and().method(HttpMethod.GET)
-						.uri("forward:/cart"))
-				.route(p -> p
 						.path("/cart/add")
 						.and().method(HttpMethod.POST)
 						.uri("forward:/cart"))
@@ -46,11 +42,23 @@ public class GatewayApplication {
 						.and().method(HttpMethod.POST)
 						.uri("forward:/cart"))
 				.route(p -> p
+						.path("/cart")
+						.and().method(HttpMethod.GET)
+						.uri("forward:/cart"))
+				.route(p -> p
 						.path("/cart/**")
 						.uri(cartUri + "/cart"))
 				// Orders
 				.route(p -> p
 						.path("/orders/{id}/products")
+						.and().method(HttpMethod.GET)
+						.uri("forward:/orders"))
+				.route(p -> p
+						.path("/orders")
+						.and().method(HttpMethod.GET)
+						.uri("forward:/orders"))
+				.route(p -> p
+						.path("/orders/{id}")
 						.and().method(HttpMethod.GET)
 						.uri("forward:/orders"))
 				.route(p -> p
