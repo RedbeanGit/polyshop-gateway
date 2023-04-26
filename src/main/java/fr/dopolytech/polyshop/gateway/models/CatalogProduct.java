@@ -7,6 +7,9 @@ public class CatalogProduct {
     public String description;
     public Double price;
 
+    public CatalogProduct() {
+    }
+
     public CatalogProduct(String productId, String name, String description, Double price) {
         this.productId = productId;
         this.name = name;

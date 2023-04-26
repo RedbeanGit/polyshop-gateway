@@ -2,10 +2,14 @@ package fr.dopolytech.polyshop.gateway.controllers;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ResponseStatusException;
@@ -102,5 +106,32 @@ public class ProductController {
                                         inventoryProduct.quantity);
                             });
                 });
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<Product> create(@RequestBody Product product) {
+        String catalogUrl = uriConfiguration.getCatalogUri();
+        String inventoryUrl = uriConfiguration.getInventoryUri();
+
+        WebClient webClient = webClientBuilder.build();
+
+        product.id = UUID.randomUUID().toString();
+
+        return webClient.post()
+                .uri(inventoryUrl + "/products")
+                .bodyValue(new InventoryProduct(product.id, product.quantity))
+                .retrieve()
+                .bodyToMono(InventoryProduct.class)
+                .flatMap(
+                        inventoryProduct -> webClient.post()
+                                .uri(catalogUrl + "/products")
+                                .bodyValue(new CatalogProduct(product.id, product.name, product.description,
+                                        product.price))
+                                .retrieve()
+                                .bodyToMono(CatalogProduct.class)
+                                .map(catalogProduct -> new Product(product.id, catalogProduct.name,
+                                        catalogProduct.description, catalogProduct.price, inventoryProduct.quantity)));
+
     }
 }
