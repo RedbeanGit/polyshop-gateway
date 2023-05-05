@@ -1,13 +1,21 @@
 package fr.dopolytech.polyshop.gateway.configurations;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties
 public class UriConfiguration {
-    private String catalogUri = "lb://catalog-service";
-    private String cartUri = "lb://cart-service";
-    private String orderUri = "lb://order-service";
-    private String inventoryUri = "lb://inventory-service";
+    @Value("${catalog.uri}")
+    private String catalogUri;
+
+    @Value("${cart.uri}")
+    private String cartUri;
+
+    @Value("${order.uri}")
+    private String orderUri;
+
+    @Value("${inventory.uri}")
+    private String inventoryUri;
 
     public String getCatalogUri() {
         return catalogUri;
